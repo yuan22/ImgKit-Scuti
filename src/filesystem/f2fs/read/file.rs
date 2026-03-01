@@ -18,12 +18,20 @@ impl F2fsVolume {
 
         // Check if it is inline data
         if inode.inline & F2FS_INLINE_DATA != 0 {
-            // Inline data is stored inside the inode, offset 400
             let node_data = self.read_node(nid)?;
-            let inline_offset = 400;
+            // Inline data starts after i_addr reserved slot, offset depends on extra_attr
+            let inline_offset = if inode.inline & F2FS_EXTRA_ATTR != 0 {
+                360 + inode.extra_isize as usize + 4
+            } else {
+                360 + 4
+            };
+            let inline_end = node_data.len().saturating_sub(24);
+            if inline_offset >= inline_end {
+                return Ok(Vec::new());
+            }
             let data_len = inode
                 .size
-                .min((node_data.len() - inline_offset - 24) as u64)
+                .min((inline_end - inline_offset) as u64)
                 as usize;
             return Ok(node_data[inline_offset..inline_offset + data_len].to_vec());
         }

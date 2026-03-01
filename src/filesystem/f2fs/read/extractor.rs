@@ -60,6 +60,8 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
 
     fs::create_dir_all(&extract_path)?;
     fs::create_dir_all(&config_dir)?;
+    let case_sensitive = crate::utils::is_case_sensitive_directory(&extract_path)?;
+    let mut case_map = HashMap::new();
 
     // Extract file system
     let root_nid = Nid(3);
@@ -117,6 +119,13 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
                 }
             };
             let entry_rel_path = current_path.join(&safe_name);
+            if !case_sensitive {
+                crate::utils::check_windows_case_conflict(
+                    &mut case_map,
+                    &extract_path,
+                    &entry_rel_path,
+                )?;
+            }
             let entry_path = crate::utils::join_output_path(&extract_path, &entry_rel_path)
                 .map_err(|e| anyhow::anyhow!("无效输出路径 {:?}: {}", entry_rel_path, e))?;
             let entry_node = reader.read_node(entry.nid).map_err(|e| {

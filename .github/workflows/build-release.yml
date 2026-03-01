@@ -25,7 +25,11 @@ jobs:
     outputs:
       tag: ${{ steps.vars.outputs.tag }}
       version: ${{ steps.vars.outputs.version }}
+      release_notes: ${{ steps.notes.outputs.release_notes }}
     steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
       - name: 计算 Tag 与版本
         id: vars
         shell: bash
@@ -51,6 +55,28 @@ jobs:
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: 读取更新日志
+        id: notes
+        shell: bash
+        run: |
+          notes_file=".github/workflows/release-notes/release-notes.md"
+          if [ ! -f "$notes_file" ]; then
+            echo "::error::未找到更新日志文件: $notes_file"
+            exit 1
+          fi
+
+          {
+            echo "release_notes<<EOF"
+            cat "$notes_file"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## 更新日志预览"
+            echo
+            cat "$notes_file"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build_windows:
     name: 构建 Windows-${{ matrix.arch }}
@@ -277,13 +303,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
-          name: ImgKit ${{ needs.prepare.outputs.version }}
+          name: ImgKit-Scuti ${{ needs.prepare.outputs.version }}
           body: |
-            ## ImgKit ${{ needs.prepare.outputs.version }}
+            ${{ needs.prepare.outputs.release_notes }}
 
-            发布 Commit: `${{ github.sha }}`
-
-            支持平台:
+            ## 支持平台
             - Windows x64
             - Windows arm64
             - Linux x64

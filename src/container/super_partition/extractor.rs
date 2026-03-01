@@ -39,6 +39,8 @@ fn extract_with_reader<R: Read + Seek>(reader: &mut R, config: ExtractConfig) ->
     // Create output directory
     let output_base = PathBuf::from(&config.output_dir);
     fs::create_dir_all(&output_base)?;
+    let case_sensitive = crate::utils::is_case_sensitive_directory(&output_base)?;
+    let mut case_map = std::collections::HashMap::new();
 
     // Filter partitions to extract
     let mut partitions_to_extract: Vec<_> = if config.partition_names.is_empty() {
@@ -85,7 +87,11 @@ fn extract_with_reader<R: Read + Seek>(reader: &mut R, config: ExtractConfig) ->
         let output_name = sanitize_single_component(&output_name)
             .with_context(|| format!("invalid partition output name: {}", output_name))?;
 
-        let partition_output = output_base.join(format!("{}.img", output_name));
+        let output_rel = PathBuf::from(format!("{}.img", output_name));
+        if !case_sensitive {
+            crate::utils::check_windows_case_conflict(&mut case_map, &output_base, &output_rel)?;
+        }
+        let partition_output = output_base.join(&output_rel);
 
         // Extract partition data
         extract_partition(

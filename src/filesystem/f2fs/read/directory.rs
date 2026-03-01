@@ -44,40 +44,53 @@ impl F2fsVolume {
         let dentry_offset = bitmap_size + reserved_size;
         let filename_offset = dentry_offset + nr_dentry * dentry_size;
 
-        for i in 0..nr_dentry {
+        let mut i = 0;
+        while i < nr_dentry {
             let byte_idx = i / 8;
             let bit_idx = i % 8;
 
-            if bitmap[byte_idx] & (1 << bit_idx) != 0 {
-                let entry_pos = dentry_offset + i * dentry_size;
-                if entry_pos + dentry_size > block.len() {
-                    break;
-                }
-
-                let entry_data = &block[entry_pos..entry_pos + dentry_size];
-                let mut cursor = Cursor::new(entry_data);
-
-                let _hash = cursor.read_u32::<LittleEndian>()?;
-                let nid = Nid(cursor.read_u32::<LittleEndian>()?);
-                let name_len = cursor.read_u16::<LittleEndian>()? as usize;
-                let file_type = cursor.read_u8()?;
-
-                let name_pos = filename_offset + i * F2FS_SLOT_LEN;
-                if name_pos + name_len > block.len() {
-                    break;
-                }
-
-                let name_bytes = &block[name_pos..name_pos + name_len];
-                let name = String::from_utf8_lossy(name_bytes).to_string();
-
-                if name != "." && name != ".." {
-                    entries.push(DirEntry {
-                        name,
-                        nid,
-                        file_type,
-                    });
-                }
+            if bitmap[byte_idx] & (1 << bit_idx) == 0 {
+                i += 1;
+                continue;
             }
+
+            let entry_pos = dentry_offset + i * dentry_size;
+            if entry_pos + dentry_size > block.len() {
+                break;
+            }
+
+            let entry_data = &block[entry_pos..entry_pos + dentry_size];
+            let mut cursor = Cursor::new(entry_data);
+
+            let _hash = cursor.read_u32::<LittleEndian>()?;
+            let nid = Nid(cursor.read_u32::<LittleEndian>()?);
+            let name_len = cursor.read_u16::<LittleEndian>()? as usize;
+            let file_type = cursor.read_u8()?;
+
+            // name_len=0 means continuation slot, not a new dentry
+            if name_len == 0 || name_len > F2FS_NAME_LEN {
+                i += 1;
+                continue;
+            }
+
+            let name_pos = filename_offset + i * F2FS_SLOT_LEN;
+            if name_pos + name_len > block.len() {
+                break;
+            }
+
+            let name_bytes = &block[name_pos..name_pos + name_len];
+            let name = String::from_utf8_lossy(name_bytes).to_string();
+
+            if name != "." && name != ".." {
+                entries.push(DirEntry {
+                    name,
+                    nid,
+                    file_type,
+                });
+            }
+
+            let slot_count = name_len.div_ceil(F2FS_SLOT_LEN).max(1);
+            i += slot_count;
         }
 
         Ok(entries)

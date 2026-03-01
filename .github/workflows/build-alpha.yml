@@ -263,9 +263,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
-          name: ImgKit Alpha ${{ needs.prepare.outputs.version }}
+          name: ImgKit-Scuti Alpha ${{ needs.prepare.outputs.version }}
           body: |
-            ## ImgKit Alpha ${{ needs.prepare.outputs.version }}
+            ## ImgKit-Scuti Alpha ${{ needs.prepare.outputs.version }}
 
             分支: `${{ needs.prepare.outputs.branch }}`
             Commit: `${{ github.sha }}`

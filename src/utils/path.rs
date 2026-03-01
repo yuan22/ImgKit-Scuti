@@ -1,4 +1,5 @@
 use anyhow::{Result, anyhow};
+use std::fs::{self, OpenOptions};
 use std::path::{Component, Path, PathBuf};
 
 pub fn normalize_image_path(path: &Path) -> Result<PathBuf> {
@@ -40,6 +41,101 @@ pub fn sanitize_single_component(name: &str) -> Result<String> {
 pub fn join_output_path(root: &Path, image_path: &Path) -> Result<PathBuf> {
     let normalized = normalize_image_path(image_path)?;
     Ok(root.join(normalized))
+}
+
+pub fn is_case_sensitive_directory(path: &Path) -> Result<bool> {
+    #[cfg(windows)]
+    {
+        fs::create_dir_all(path)?;
+        let check_dir = path.join(format!(".imgkit_case_check_{}", std::process::id()));
+
+        if check_dir.exists() {
+            fs::remove_dir_all(&check_dir)?;
+        }
+        fs::create_dir_all(&check_dir)?;
+
+        let lower = check_dir.join("imgkit_case_probe");
+        let upper = check_dir.join("IMGKIT_CASE_PROBE");
+
+        OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lower)
+            .map_err(|e| anyhow!("创建大小写检测文件失败: {}", e))?;
+
+        let upper_result = OpenOptions::new().write(true).create_new(true).open(&upper);
+        let _ = fs::remove_dir_all(&check_dir);
+
+        return match upper_result {
+            Ok(_) => Ok(true),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+            Err(err) => Err(anyhow!("大小写检测失败: {}", err)),
+        };
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        Ok(true)
+    }
+}
+
+pub fn build_windows_case_conflict_message(
+    output_dir: &Path,
+    existing_path: &Path,
+    incoming_path: &Path,
+) -> String {
+    #[cfg(windows)]
+    {
+        format!(
+            "检测到仅大小写不同的冲突路径:\n\
+  {}\n\
+  {}\n\
+当前输出目录未开启大小写敏感: {}\n\
+此提示仅适用于 Windows。\n\
+请在该目录执行以下命令开启:\n\
+  fsutil file setCaseSensitiveInfo . enable\n\
+可用以下命令验证状态:\n\
+  fsutil file queryCaseSensitiveInfo .\n\
+如提示权限不足, 请使用管理员身份打开 PowerShell 后重试。",
+            existing_path.display(),
+            incoming_path.display(),
+            output_dir.display()
+        )
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = output_dir;
+        let _ = existing_path;
+        let _ = incoming_path;
+        String::new()
+    }
+}
+
+pub fn check_windows_case_conflict(
+    case_map: &mut std::collections::HashMap<String, PathBuf>,
+    output_dir: &Path,
+    path: &Path,
+) -> Result<()> {
+    #[cfg(windows)]
+    {
+        let normalized = normalize_image_path(path)?;
+        let key = normalized.to_string_lossy().to_lowercase();
+        if let Some(existing) = case_map.get(&key) {
+            if existing != &normalized {
+                return Err(anyhow!(
+                    "{}",
+                    build_windows_case_conflict_message(output_dir, existing, &normalized)
+                ));
+            }
+            return Ok(());
+        }
+
+        case_map.insert(key, normalized);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

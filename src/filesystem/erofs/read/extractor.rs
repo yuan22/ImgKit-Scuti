@@ -107,6 +107,8 @@ fn extract(
     fs::create_dir_all(file_extract_dir)?;
     let extract_root = file_extract_dir.join(prefix);
     fs::create_dir_all(&extract_root)?;
+    let case_sensitive = crate::utils::is_case_sensitive_directory(&extract_root)?;
+    let mut case_map = HashMap::new();
 
     let mut fs_config = Vec::new();
     let mut file_contexts = HashMap::new();
@@ -145,6 +147,10 @@ fn extract(
             capabilities,
             link_target.clone(),
         ));
+
+        if !case_sensitive {
+            crate::utils::check_windows_case_conflict(&mut case_map, &extract_root, &path)?;
+        }
 
         let output_path = crate::utils::join_output_path(&extract_root, &path)
             .map_err(|e| anyhow::anyhow!("无效输出路径 {:?}: {}", path, e))?;
