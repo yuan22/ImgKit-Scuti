@@ -1,6 +1,10 @@
 // Super partition pack command.
 // Packs multiple partition images into a Super partition image.
 
+use crate::container::super_partition::{
+    self, BlockDeviceInfo, GroupInfo, LP_METADATA_GEOMETRY_SIZE, LP_PARTITION_ATTR_READONLY,
+    LP_PARTITION_RESERVED_BYTES, LP_SECTOR_SIZE, MetadataBuilder, PartitionInfo,
+};
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::Path;
@@ -24,10 +28,6 @@ pub fn run_super_pack(
     force_full_image: bool,
     sparse: bool,
 ) -> Result<()> {
-    use crate::container::super_partition::{
-        BlockDeviceInfo, GroupInfo, LP_PARTITION_ATTR_READONLY, MetadataBuilder, PartitionInfo,
-    };
-
     // Parse partition definitions
     let mut partition_infos: Vec<(String, u32, u64, String)> = Vec::new();
     for p in partitions {
@@ -75,19 +75,18 @@ pub fn run_super_pack(
     let calculated_device_size = match device_size.as_deref() {
         Some("auto") | None => {
             // Auto-calculate: metadata area + partition data (each partition aligned)
-            let metadata_area = crate::container::super_partition::LP_PARTITION_RESERVED_BYTES
-                + crate::container::super_partition::LP_METADATA_GEOMETRY_SIZE * 2
+            let metadata_area = LP_PARTITION_RESERVED_BYTES
+                + LP_METADATA_GEOMETRY_SIZE * 2
                 + metadata_size as u64 * slots as u64 * 2;
-            let first_sector = metadata_area.div_ceil(alignment_u64) * alignment_u64
-                / crate::container::super_partition::LP_SECTOR_SIZE;
+            let first_sector =
+                metadata_area.div_ceil(alignment_u64) * alignment_u64 / LP_SECTOR_SIZE;
 
             let mut partition_area = 0u64;
             for (_, _, size, _) in &partition_infos {
                 partition_area += (*size).div_ceil(alignment_u64) * alignment_u64;
             }
 
-            let total =
-                first_sector * crate::container::super_partition::LP_SECTOR_SIZE + partition_area;
+            let total = first_sector * LP_SECTOR_SIZE + partition_area;
             total.div_ceil(4096) * 4096
         }
         Some(s) => s
@@ -151,27 +150,19 @@ pub fn run_super_pack(
     let output_path = Path::new(output);
     if force_full_image || !image_map.is_empty() {
         if sparse {
-            crate::container::super_partition::write_to_sparse_image_file_with_data(
+            super_partition::write_to_sparse_image_file_with_data(
                 output_path,
                 &metadata,
                 &image_map,
                 block_size,
             )?;
         } else {
-            crate::container::super_partition::write_to_image_file_with_data(
-                output_path,
-                &metadata,
-                &image_map,
-            )?;
+            super_partition::write_to_image_file_with_data(output_path, &metadata, &image_map)?;
         }
     } else if sparse {
-        crate::container::super_partition::write_sparse_empty_image(
-            output_path,
-            &metadata,
-            block_size,
-        )?;
+        super_partition::write_sparse_empty_image(output_path, &metadata, block_size)?;
     } else {
-        crate::container::super_partition::write_empty_image(output_path, &metadata)?;
+        super_partition::write_empty_image(output_path, &metadata)?;
     }
 
     log::info!("image written: {}", output);

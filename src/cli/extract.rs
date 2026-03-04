@@ -1,6 +1,14 @@
 // Image extraction command.
 // Supports F2FS, EXT4, EROFS, and Super partition extraction.
 
+use crate::{
+    container::super_partition::extractor as super_extractor,
+    filesystem::{
+        erofs::read::extractor as erofs_extractor, ext4::extractor as ext4_extractor,
+        f2fs::read::extractor as f2fs_extractor,
+    },
+    utils::detect_filesystem,
+};
 use anyhow::{Result, anyhow};
 use std::path::Path;
 
@@ -12,7 +20,7 @@ pub fn run_extract(
     file_contexts_path: Option<String>,
     clean: bool,
 ) -> Result<()> {
-    let fs_type = crate::utils::detect_filesystem(Path::new(input))?;
+    let fs_type = detect_filesystem(Path::new(input))?;
 
     if let Some(stripped) = fs_type.strip_prefix("sparse_") {
         log::info!("detected sparse filesystem type: {}", stripped);
@@ -26,39 +34,39 @@ pub fn run_extract(
 
     match fs_type.as_str() {
         "f2fs" => {
-            let config = crate::filesystem::f2fs::read::extractor::ExtractConfig {
+            let config = f2fs_extractor::ExtractConfig {
                 input_image: input.to_string(),
                 output_dir: output.to_string(),
                 fs_config_path,
                 file_contexts_path,
             };
-            crate::filesystem::f2fs::read::extractor::extract_image(config)?;
+            f2fs_extractor::extract_image(config)?;
         }
         "ext4" | "sparse_ext4" => {
-            let config = crate::filesystem::ext4::extractor::ExtractConfig {
+            let config = ext4_extractor::ExtractConfig {
                 input_image: input.to_string(),
                 output_dir: output.to_string(),
                 fs_config_path,
                 file_contexts_path,
             };
-            crate::filesystem::ext4::extractor::extract_image(config)?;
+            ext4_extractor::extract_image(config)?;
         }
         "erofs" => {
-            let config = crate::filesystem::erofs::read::extractor::ExtractConfig {
+            let config = erofs_extractor::ExtractConfig {
                 input_image: input.to_string(),
                 output_dir: output.to_string(),
                 fs_config_path,
                 file_contexts_path,
             };
-            crate::filesystem::erofs::read::extractor::extract_image(config)?;
+            erofs_extractor::extract_image(config)?;
         }
         "super" | "sparse_super" => {
-            let config = crate::container::super_partition::extractor::ExtractConfig {
+            let config = super_extractor::ExtractConfig {
                 input_image: input.to_string(),
                 output_dir: output.to_string(),
                 partition_names: Vec::new(),
             };
-            crate::container::super_partition::extractor::extract_image(config)?;
+            super_extractor::extract_image(config)?;
         }
         _ => {
             return Err(anyhow!(

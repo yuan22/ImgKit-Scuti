@@ -2,7 +2,11 @@
 
 use super::volume::ErofsVolume;
 use crate::filesystem::erofs::*;
-use crate::utils::create_symlink;
+use crate::utils::{
+    check_windows_case_conflict, create_symlink, display_completion, display_progress,
+    is_case_sensitive_directory, join_output_path, sanitize_single_component, write_file_contexts,
+    write_fs_config,
+};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
@@ -107,7 +111,7 @@ fn extract(
     fs::create_dir_all(file_extract_dir)?;
     let extract_root = file_extract_dir.join(prefix);
     fs::create_dir_all(&extract_root)?;
-    let case_sensitive = crate::utils::is_case_sensitive_directory(&extract_root)?;
+    let case_sensitive = is_case_sensitive_directory(&extract_root)?;
     let mut case_map = HashMap::new();
 
     let mut fs_config = Vec::new();
@@ -149,10 +153,10 @@ fn extract(
         ));
 
         if !case_sensitive {
-            crate::utils::check_windows_case_conflict(&mut case_map, &extract_root, &path)?;
+            check_windows_case_conflict(&mut case_map, &extract_root, &path)?;
         }
 
-        let output_path = crate::utils::join_output_path(&extract_root, &path)
+        let output_path = join_output_path(&extract_root, &path)
             .map_err(|e| anyhow::anyhow!("无效输出路径 {:?}: {}", path, e))?;
 
         if let Some(parent) = output_path.parent() {
@@ -162,7 +166,7 @@ fn extract(
         if is_dir(&inode_info) {
             fs::create_dir_all(&output_path)?;
             for (name, child_nid, _file_type) in volume.read_dir(&inode_info)? {
-                let safe_name = match crate::utils::sanitize_single_component(&name) {
+                let safe_name = match sanitize_single_component(&name) {
                     Ok(value) => value,
                     Err(err) => {
                         log::warn!("跳过非法目录项 {:?}: {}", name, err);
@@ -229,11 +233,11 @@ fn extract(
             }
 
             let count = extracted_count.fetch_add(1, Ordering::Relaxed) + 1;
-            crate::utils::display_progress(filename, count, total_task_count);
+            display_progress(filename, count, total_task_count);
         },
     );
 
-    crate::utils::display_completion(start_time.elapsed());
+    display_completion(start_time.elapsed());
 
     let fs_config_output_path = custom_fs_config_path
         .unwrap_or_else(|| config_output_dir.join(format!("{}_fs_config", prefix)));
@@ -246,8 +250,8 @@ fn extract(
         fs::create_dir_all(parent)?;
     }
 
-    crate::utils::write_fs_config(&fs_config_output_path, prefix, &fs_config)?;
-    crate::utils::write_file_contexts(&file_contexts_output_path, prefix, &file_contexts)?;
+    write_fs_config(&fs_config_output_path, prefix, &fs_config)?;
+    write_file_contexts(&file_contexts_output_path, prefix, &file_contexts)?;
 
     let failed = failed_count.load(Ordering::Relaxed);
     if failed > 0 {

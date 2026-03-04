@@ -2,8 +2,10 @@
 // Provides extraction and unpacking of Super partition images.
 
 use crate::container::sparse::SparseReader;
-use crate::container::super_partition::metadata::LpMetadata;
-use crate::utils::{progress, sanitize_single_component};
+use crate::container::super_partition::metadata::{LpMetadata, LpMetadataExtent};
+use crate::utils::{
+    check_windows_case_conflict, is_case_sensitive_directory, progress, sanitize_single_component,
+};
 use anyhow::{Context, Result};
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
@@ -39,7 +41,7 @@ fn extract_with_reader<R: Read + Seek>(reader: &mut R, config: ExtractConfig) ->
     // Create output directory
     let output_base = PathBuf::from(&config.output_dir);
     fs::create_dir_all(&output_base)?;
-    let case_sensitive = crate::utils::is_case_sensitive_directory(&output_base)?;
+    let case_sensitive = is_case_sensitive_directory(&output_base)?;
     let mut case_map = std::collections::HashMap::new();
 
     // Filter partitions to extract
@@ -89,7 +91,7 @@ fn extract_with_reader<R: Read + Seek>(reader: &mut R, config: ExtractConfig) ->
 
         let output_rel = PathBuf::from(format!("{}.img", output_name));
         if !case_sensitive {
-            crate::utils::check_windows_case_conflict(&mut case_map, &output_base, &output_rel)?;
+            check_windows_case_conflict(&mut case_map, &output_base, &output_rel)?;
         }
         let partition_output = output_base.join(&output_rel);
 
@@ -111,7 +113,7 @@ fn extract_with_reader<R: Read + Seek>(reader: &mut R, config: ExtractConfig) ->
 fn extract_partition<R: Read + Seek>(
     reader: &mut R,
     output_path: &Path,
-    extents: &[&crate::container::super_partition::metadata::LpMetadataExtent],
+    extents: &[&LpMetadataExtent],
     current_partition: usize,
     total_partitions: usize,
 ) -> Result<()> {

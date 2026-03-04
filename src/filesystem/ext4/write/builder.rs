@@ -5,6 +5,7 @@ use crate::filesystem::ext4::types::*;
 use crate::filesystem::ext4::write::directory::file_type;
 use crate::filesystem::ext4::write::*;
 use crate::filesystem::f2fs::write::{FsConfig, SelinuxContexts};
+use crate::utils::symlink::read_symlink_info;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufWriter, Seek, SeekFrom, Write};
@@ -230,7 +231,7 @@ impl Ext4Builder {
             let metadata = entry.metadata()?;
 
             // Detect symbolic links first (supports Windows’ !<symlink> format)
-            let symlink_info = crate::utils::symlink::read_symlink_info(&entry.path())
+            let symlink_info = read_symlink_info(&entry.path())
                 .map_err(|e| std::io::Error::other(e.to_string()))?;
 
             if metadata.is_dir() {

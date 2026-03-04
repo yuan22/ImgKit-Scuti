@@ -4,6 +4,7 @@ use crate::filesystem::f2fs::consts::*;
 // Responsible for managing the segment summary area and recording the ownership information of each block.
 
 use crate::filesystem::f2fs::Result;
+use crate::filesystem::f2fs::error::F2fsError;
 use crate::filesystem::f2fs::types::*;
 use std::io::Write;
 
@@ -70,9 +71,9 @@ impl SsaManager {
 
     // Set the summary information of the data block
     pub fn set_data_summary(&mut self, blkaddr: u32, nid: u32, ofs_in_node: u16) -> Result<()> {
-        let segno = self.get_segno(blkaddr).ok_or_else(|| {
-            crate::filesystem::f2fs::error::F2fsError::InvalidData("无效的块地址".into())
-        })?;
+        let segno = self
+            .get_segno(blkaddr)
+            .ok_or_else(|| F2fsError::InvalidData("无效的块地址".into()))?;
         let blkoff = self.get_blkoff(blkaddr) as usize;
 
         if segno as usize >= self.summaries.len() {
@@ -91,9 +92,9 @@ impl SsaManager {
 
     // Set summary information for node blocks
     pub fn set_node_summary(&mut self, blkaddr: u32, nid: u32) -> Result<()> {
-        let segno = self.get_segno(blkaddr).ok_or_else(|| {
-            crate::filesystem::f2fs::error::F2fsError::InvalidData("无效的块地址".into())
-        })?;
+        let segno = self
+            .get_segno(blkaddr)
+            .ok_or_else(|| F2fsError::InvalidData("无效的块地址".into()))?;
         let blkoff = self.get_blkoff(blkaddr) as usize;
 
         if segno as usize >= self.summaries.len() {

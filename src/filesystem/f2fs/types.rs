@@ -255,18 +255,16 @@ impl XattrEntry {
     // Get the full xattr name (including prefix)
     pub fn full_name(&self) -> String {
         let prefix = match self.name_index {
-            crate::filesystem::f2fs::F2FS_XATTR_INDEX_USER => "user.",
-            crate::filesystem::f2fs::F2FS_XATTR_INDEX_POSIX_ACL_ACCESS => "system.posix_acl_access",
-            crate::filesystem::f2fs::F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT => {
-                "system.posix_acl_default"
-            }
-            crate::filesystem::f2fs::F2FS_XATTR_INDEX_TRUSTED => "trusted.",
-            crate::filesystem::f2fs::F2FS_XATTR_INDEX_SECURITY => "security.",
+            F2FS_XATTR_INDEX_USER => "user.",
+            F2FS_XATTR_INDEX_POSIX_ACL_ACCESS => "system.posix_acl_access",
+            F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT => "system.posix_acl_default",
+            F2FS_XATTR_INDEX_TRUSTED => "trusted.",
+            F2FS_XATTR_INDEX_SECURITY => "security.",
             _ => "",
         };
 
-        if self.name_index == crate::filesystem::f2fs::F2FS_XATTR_INDEX_POSIX_ACL_ACCESS
-            || self.name_index == crate::filesystem::f2fs::F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT
+        if self.name_index == F2FS_XATTR_INDEX_POSIX_ACL_ACCESS
+            || self.name_index == F2FS_XATTR_INDEX_POSIX_ACL_DEFAULT
         {
             prefix.to_string()
         } else {
