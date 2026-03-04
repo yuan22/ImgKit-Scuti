@@ -29,10 +29,7 @@ impl F2fsVolume {
             if inline_offset >= inline_end {
                 return Ok(Vec::new());
             }
-            let data_len = inode
-                .size
-                .min((inline_end - inline_offset) as u64)
-                as usize;
+            let data_len = inode.size.min((inline_end - inline_offset) as u64) as usize;
             return Ok(node_data[inline_offset..inline_offset + data_len].to_vec());
         }
 

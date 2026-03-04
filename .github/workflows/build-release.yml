@@ -143,12 +143,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp "target/${{ matrix.target }}/release/imgkit.exe" "dist/imgkit-windows-${{ matrix.arch }}.exe"
+          cp "target/${{ matrix.target }}/release/imgkit_scuti.exe" "dist/imgkit_scuti-windows-${{ matrix.arch }}.exe"
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
-          name: imgkit-windows-${{ matrix.arch }}
+          name: imgkit_scuti-windows-${{ matrix.arch }}
           path: dist/*
           retention-days: 90
 
@@ -196,12 +196,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp "target/${{ matrix.target }}/release/imgkit" "dist/imgkit-linux-${{ matrix.arch }}"
+          cp "target/${{ matrix.target }}/release/imgkit_scuti" "dist/imgkit_scuti-linux-${{ matrix.arch }}"
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
-          name: imgkit-linux-${{ matrix.arch }}
+          name: imgkit_scuti-linux-${{ matrix.arch }}
           path: dist/*
           retention-days: 90
 
@@ -264,12 +264,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp "target/${{ matrix.target }}/release/imgkit" "dist/imgkit-android-${{ matrix.arch }}"
+          cp "target/${{ matrix.target }}/release/imgkit_scuti" "dist/imgkit_scuti-android-${{ matrix.arch }}"
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
-          name: imgkit-android-${{ matrix.arch }}
+          name: imgkit_scuti-android-${{ matrix.arch }}
           path: dist/*
           retention-days: 90
 
@@ -299,12 +299,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp "target/aarch64-apple-darwin/release/imgkit" "dist/imgkit-macos-arm64"
+          cp "target/aarch64-apple-darwin/release/imgkit_scuti" "dist/imgkit_scuti-macos-arm64"
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
-          name: imgkit-macos-arm64
+          name: imgkit_scuti-macos-arm64
           path: dist/*
           retention-days: 90
 

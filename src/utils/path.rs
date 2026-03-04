@@ -66,11 +66,11 @@ pub fn is_case_sensitive_directory(path: &Path) -> Result<bool> {
         let upper_result = OpenOptions::new().write(true).create_new(true).open(&upper);
         let _ = fs::remove_dir_all(&check_dir);
 
-        return match upper_result {
+        match upper_result {
             Ok(_) => Ok(true),
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
             Err(err) => Err(anyhow!("大小写检测失败: {}", err)),
-        };
+        }
     }
 
     #[cfg(not(windows))]

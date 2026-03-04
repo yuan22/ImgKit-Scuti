@@ -22,11 +22,12 @@ pub mod filesystem;
 // CLI interface
 mod cli;
 
+use crate::utils::logger;
 use anyhow::{Result, anyhow};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "imgkit")]
+#[command(name = "imgkit_scuti")]
 #[command(about = "Android image tool - unpack and pack Super/F2FS/EXT4/EROFS images")]
 #[command(after_help = FULL_HELP)]
 pub struct Cli {
@@ -39,7 +40,7 @@ const FULL_HELP: &str = r#"
                               Unpack Command
 ================================================================================
 
-Usage: imgkit unpack [OPTIONS] -i <INPUT> -o <OUTPUT>
+Usage: imgkit_scuti unpack [OPTIONS] -i <INPUT> -o <OUTPUT>
 
 Supported formats: Super, F2FS, EXT4, EROFS (auto-detected)
 
@@ -52,15 +53,15 @@ Arguments:
   -c, --clean                     Remove existing files in the output directory
 
 Examples:
-  imgkit unpack -i system.img -o output/
-  imgkit unpack -i super.img -o output/ -l 2
-  imgkit unpack -i system.img -o output/ --clean
+  imgkit_scuti unpack -i system.img -o output/
+  imgkit_scuti unpack -i super.img -o output/ -l 2
+  imgkit_scuti unpack -i system.img -o output/ --clean
 
 ================================================================================
                               Pack Command
 ================================================================================
 
-Usage: imgkit pack --type <TYPE> [OPTIONS] -o <OUTPUT>
+Usage: imgkit_scuti pack --type <TYPE> [OPTIONS] -o <OUTPUT>
 
 Supported types: super, f2fs, ext4, erofs
 
@@ -68,7 +69,7 @@ Supported types: super, f2fs, ext4, erofs
                             Super Partition Packing
 --------------------------------------------------------------------------------
 
-Usage: imgkit pack --type super [OPTIONS] -o <OUTPUT>
+Usage: imgkit_scuti pack --type super [OPTIONS] -o <OUTPUT>
 
 Required:
   -o, --output <FILE>             Path to the output image file
@@ -91,7 +92,7 @@ Optional:
 
 Examples:
   # VAB mode + sparse format
-  imgkit pack --type super -o super.img -d auto \
+  imgkit_scuti pack --type super -o super.img -d auto \
     -g qti_dynamic_partitions:8589934592 \
     -p system:readonly:2147483648:qti_dynamic_partitions \
     -p vendor:readonly:524288000:qti_dynamic_partitions \
@@ -99,7 +100,7 @@ Examples:
     --virtual-ab -x -S
 
   # Fixed device size + raw format
-  imgkit pack --type super -o super.img -d 8589934592 \
+  imgkit_scuti pack --type super -o super.img -d 8589934592 \
     -g main:8589934592 -p system:readonly:2147483648:main \
     -i system=system.img -F
 
@@ -107,7 +108,7 @@ Examples:
                             F2FS Filesystem Packing
 --------------------------------------------------------------------------------
 
-Usage: imgkit pack --type f2fs [OPTIONS] -s <SOURCE> -o <OUTPUT> -z <SIZE>
+Usage: imgkit_scuti pack --type f2fs [OPTIONS] -s <SOURCE> -o <OUTPUT> -z <SIZE>
 
 Required:
   -s, --source <DIR>              Source directory path
@@ -129,8 +130,8 @@ Optional:
   -S, --sparse                    Output in sparse image format
 
 Examples:
-  imgkit pack --type f2fs -s system/ -o system.img -z 2147483648
-  imgkit pack --type f2fs -s system/ -o system.img -z 2147483648 \
+  imgkit_scuti pack --type f2fs -s system/ -o system.img -z 2147483648
+  imgkit_scuti pack --type f2fs -s system/ -o system.img -z 2147483648 \
     --file-contexts file_contexts --fs-config fs_config \
     -m /system --readonly
 
@@ -138,7 +139,7 @@ Examples:
                             EXT4 Filesystem Packing
 --------------------------------------------------------------------------------
 
-Usage: imgkit pack --type ext4 [OPTIONS] -s <SOURCE> -o <OUTPUT> -z <SIZE>
+Usage: imgkit_scuti pack --type ext4 [OPTIONS] -s <SOURCE> -o <OUTPUT> -z <SIZE>
 
 Required:
   -s, --source <DIR>              Source directory path
@@ -155,8 +156,8 @@ Optional:
       --root-gid <GID>            Root user GID [default: 0]
 
 Examples:
-  imgkit pack --type ext4 -s system/ -o system.img -z 2147483648
-  imgkit pack --type ext4 -s system/ -o system.img -z 2147483648 \
+  imgkit_scuti pack --type ext4 -s system/ -o system.img -z 2147483648
+  imgkit_scuti pack --type ext4 -s system/ -o system.img -z 2147483648 \
     --file-contexts file_contexts --fs-config fs_config \
     -m /system --label system
 
@@ -164,7 +165,7 @@ Examples:
                             EROFS Filesystem Packing
 --------------------------------------------------------------------------------
 
-Usage: imgkit pack --type erofs [OPTIONS] -s <SOURCE> -o <OUTPUT>
+Usage: imgkit_scuti pack --type erofs [OPTIONS] -s <SOURCE> -o <OUTPUT>
 
 Required:
   -s, --source <DIR>              Source directory path
@@ -191,8 +192,8 @@ Compression level notes:
   zstd:    0-22 [default: 3]
 
 Examples:
-  imgkit pack --type erofs -s system/ -o system.img
-  imgkit pack --type erofs -s system/ -o system.img \
+  imgkit_scuti pack --type erofs -s system/ -o system.img
+  imgkit_scuti pack --type erofs -s system/ -o system.img \
     --compress lz4hc --compress-level 9 \
     --file-contexts file_contexts --fs-config fs_config \
     -m /system
@@ -420,7 +421,7 @@ pub fn run(cli: Cli) -> Result<()> {
             level,
             clean,
         } => {
-            crate::utils::logger::init(level);
+            logger::init(level);
             cli::run_extract(&input, &output, fs_config_path, file_contexts_path, clean)
         }
         Commands::Pack {
@@ -458,7 +459,7 @@ pub fn run(cli: Cli) -> Result<()> {
             sparse,
             level,
         } => {
-            crate::utils::logger::init(level);
+            logger::init(level);
 
             match r#type.to_lowercase().as_str() {
                 "super" => cli::run_super_pack(

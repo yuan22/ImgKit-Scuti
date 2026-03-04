@@ -719,8 +719,15 @@ impl F2fsBuilder {
         self.writer.write_all(&nat_data)?;
 
         // Write second NAT
-        let nat_blocks_per_copy =
-            (layout.segment_count_nat / 2) * DEFAULT_BLOCKS_PER_SEGMENT / F2FS_BLKSIZE as u32;
+        let nat_blocks_per_copy = (layout.segment_count_nat / 2) * DEFAULT_BLOCKS_PER_SEGMENT;
+        let nat_copy_size = nat_blocks_per_copy as usize * F2FS_BLKSIZE;
+        if nat_data.len() > nat_copy_size {
+            return Err(F2fsError::InvalidData(format!(
+                "NAT 数据超出单副本容量: {} > {}",
+                nat_data.len(),
+                nat_copy_size
+            )));
+        }
         let nat_offset_2 = (layout.nat_blkaddr + nat_blocks_per_copy) as u64 * F2FS_BLKSIZE as u64;
         self.writer.seek(SeekFrom::Start(nat_offset_2))?;
         self.writer.write_all(&nat_data)?;

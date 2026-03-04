@@ -1,6 +1,6 @@
 <div align="center">
 
-# ImgKit
+# ImgKit-Scuti
 
 [![English](https://img.shields.io/badge/English-red)](../../README.md)
 [![简体中文](https://img.shields.io/badge/简体中文-blue)](README.zh-CN.md)
@@ -16,13 +16,11 @@
 - [工具优势](#工具优势)
 - [快速开始](#快速开始)
 - [命令总览](#命令总览)
-- [解包用法](#解包用法)
-- [打包用法](#打包用法)
-- [常用参数提示](#常用参数提示)
+- [帮助参数总表](#帮助参数总表)
 
 ## 支持的解包格式
 
-`imgkit unpack` 会自动识别输入镜像格式，当前支持：
+`imgkit_scuti unpack` 会自动识别输入镜像格式，当前支持：
 
 | 类型 | 是否支持解包 | 说明 |
 |---|---|---|
@@ -34,7 +32,7 @@
 
 ## 支持的打包类型
 
-`imgkit pack` 当前支持：
+`imgkit_scuti pack` 当前支持：
 
 - `super`
 - `ext4`
@@ -55,13 +53,13 @@
 
 ```bash
 cargo build --release
-./target/release/imgkit --help
+./target/release/imgkit_scuti --help
 ```
 
 ## 命令总览
 
 ```bash
-imgkit <SUBCOMMAND> [OPTIONS]
+imgkit_scuti <SUBCOMMAND> [OPTIONS]
 ```
 
 可用子命令：
@@ -72,69 +70,186 @@ imgkit <SUBCOMMAND> [OPTIONS]
 查看详细参数：
 
 ```bash
-imgkit --help
-imgkit unpack --help
-imgkit pack --help
+imgkit_scuti --help
+imgkit_scuti unpack --help
+imgkit_scuti pack --help
 ```
 
-## 解包用法
+## 帮助参数总表
+
+### `unpack`
 
 ```bash
-imgkit unpack -i <INPUT_IMAGE> -o <OUTPUT_DIR> [OPTIONS]
+imgkit_scuti unpack [OPTIONS] -i <INPUT> -o <OUTPUT>
 ```
 
-常用示例：
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `-i, --input <FILE>` | 是 | 输入镜像路径 |
+| `-o, --output <DIR>` | 是 | 输出目录路径 |
+| `--fs-config-path <FILE>` | 否 | 自定义导出的 `fs_config` 路径 |
+| `--file-contexts-path <FILE>` | 否 | 自定义导出的 `file_contexts` 路径 |
+| `-l, --level <0-3>` | 否 | 日志级别，默认 `1` |
+| `-c, --clean` | 否 | 解包前删除已有输出 |
+
+示例：
 
 ```bash
-# 基本解包
-imgkit unpack -i system.img -o out/system
-
-# 解包前清理输出目录
-imgkit unpack -i system.img -o out/system -c
-
-# 调整日志级别（0-3）
-imgkit unpack -i super.img -o out/super -l 2
+imgkit_scuti unpack -i system.img -o out/system
+imgkit_scuti unpack -i super.img -o out/super -l 2
+imgkit_scuti unpack -i system.img -o out/system --clean
 ```
 
-## 打包用法
+### `pack`
 
 ```bash
-imgkit pack --type <super|ext4|f2fs|erofs> [OPTIONS]
+imgkit_scuti pack --type <TYPE> [OPTIONS] -o <OUTPUT>
 ```
 
-### 打包 super
+`TYPE` 支持：`super`、`f2fs`、`ext4`、`erofs`。
+
+### `pack --type super`
 
 ```bash
-imgkit pack --type super -o super.img -d auto \
-  -g main:8589934592 \
-  -p system:readonly:2147483648:main \
-  -p vendor:readonly:524288000:main \
-  -i system=system.img \
-  -i vendor=vendor.img \
-  -S
+imgkit_scuti pack --type super [OPTIONS] -o <OUTPUT>
 ```
 
-### 打包 ext4
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `-o, --output <FILE>` | 是 | 输出 super 镜像路径 |
+| `-d, --device-size <SIZE|auto>` | 否 | 设备大小或 `auto` |
+| `-g, --group <name:max_size>` | 否 | 分区组定义，可重复 |
+| `-p, --partition <name:attrs:size:group>` | 否 | 分区定义，可重复 |
+| `-i, --image <name=path>` | 否 | 分区镜像映射，可重复 |
+| `-m, --metadata-size <SIZE>` | 否 | 元数据大小，默认 `65536` |
+| `--slots <NUM>` | 否 | 元数据槽数量，默认 `2` |
+| `-n, --name <NAME>` | 否 | 块设备名，默认 `super` |
+| `-b, --block-size <SIZE>` | 否 | 逻辑块大小，默认 `4096` |
+| `-a, --alignment <SIZE>` | 否 | 分区对齐大小，默认 `1048576` |
+| `-O, --alignment-offset <SIZE>` | 否 | 对齐偏移，默认 `0` |
+| `-x, --auto-slot-suffixing` | 否 | 启用 A/B 自动后缀 |
+| `--virtual-ab` | 否 | 启用 Virtual A/B 标志 |
+| `-F, --force-full-image` | 否 | 强制输出非 sparse 镜像 |
+| `-S, --sparse` | 否 | 输出 sparse 镜像 |
+| `-l, --level <0-3>` | 否 | 日志级别，默认 `1` |
+
+示例：
 
 ```bash
-imgkit pack --type ext4 -s system/ -o system.img -z 2147483648
+imgkit_scuti pack --type super -o super.img -d auto \
+  -g qti_dynamic_partitions:8589934592 \
+  -p system:readonly:2147483648:qti_dynamic_partitions \
+  -p vendor:readonly:524288000:qti_dynamic_partitions \
+  -i system=system.img -i vendor=vendor.img \
+  --virtual-ab -x -S
+
+imgkit_scuti pack --type super -o super.img -d 8589934592 \
+  -g main:8589934592 -p system:readonly:2147483648:main \
+  -i system=system.img -F
 ```
 
-### 打包 f2fs
+### `pack --type f2fs`
 
 ```bash
-imgkit pack --type f2fs -s system/ -o system.img -z 2147483648 --readonly
+imgkit_scuti pack --type f2fs [OPTIONS] -s <SOURCE> -o <OUTPUT> -z <SIZE>
 ```
 
-### 打包 erofs
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `-s, --source <DIR>` | 是 | 源目录路径 |
+| `-o, --output <FILE>` | 是 | 输出镜像路径 |
+| `-z, --size <SIZE>` | 是 | 镜像大小 |
+| `-m, --mount-point <PATH>` | 否 | 挂载点，默认 `/` |
+| `--file-contexts <FILE>` | 否 | SELinux `file_contexts` 路径 |
+| `--fs-config <FILE>` | 否 | `fs_config` 路径 |
+| `--label <NAME>` | 否 | 卷标 |
+| `--timestamp <UNIX_TIME>` | 否 | 固定时间戳 |
+| `--root-uid <UID>` | 否 | 根目录 UID，默认 `0` |
+| `--root-gid <GID>` | 否 | 根目录 GID，默认 `0` |
+| `--readonly` | 否 | 启用只读模式 |
+| `--project-quota` | 否 | 启用 project quota |
+| `--casefold` | 否 | 启用大小写折叠 |
+| `--compression` | 否 | 启用压缩 |
+| `-S, --sparse` | 否 | 输出 sparse 镜像 |
+| `-l, --level <0-3>` | 否 | 日志级别，默认 `1` |
+
+示例：
 
 ```bash
-imgkit pack --type erofs -s system/ -o system.img --compress lz4hc --compress-level 9
+imgkit_scuti pack --type f2fs -s system/ -o system.img -z 2147483648
+imgkit_scuti pack --type f2fs -s system/ -o system.img -z 2147483648 \
+  --file-contexts file_contexts --fs-config fs_config \
+  -m /system --readonly
 ```
 
-## 常用参数提示
+### `pack --type ext4`
 
-- `-l, --level <0-3>`：日志级别（默认 `1`）
-- `-S, --sparse`：输出 sparse 镜像（支持场景下）
-- `--file-contexts <FILE>`：SELinux 上下文文件
-- `--fs-config <FILE>`：权限配置文件
+```bash
+imgkit_scuti pack --type ext4 [OPTIONS] -s <SOURCE> -o <OUTPUT> -z <SIZE>
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `-s, --source <DIR>` | 是 | 源目录路径 |
+| `-o, --output <FILE>` | 是 | 输出镜像路径 |
+| `-z, --size <SIZE>` | 是 | 镜像大小 |
+| `-m, --mount-point <PATH>` | 否 | 挂载点，默认 `/` |
+| `--file-contexts <FILE>` | 否 | SELinux `file_contexts` 路径 |
+| `--fs-config <FILE>` | 否 | `fs_config` 路径 |
+| `--label <NAME>` | 否 | 卷标 |
+| `--timestamp <UNIX_TIME>` | 否 | 固定时间戳 |
+| `--root-uid <UID>` | 否 | 根目录 UID，默认 `0` |
+| `--root-gid <GID>` | 否 | 根目录 GID，默认 `0` |
+| `-S, --sparse` | 否 | 输出 sparse 镜像 |
+| `-l, --level <0-3>` | 否 | 日志级别，默认 `1` |
+
+示例：
+
+```bash
+imgkit_scuti pack --type ext4 -s system/ -o system.img -z 2147483648
+imgkit_scuti pack --type ext4 -s system/ -o system.img -z 2147483648 \
+  --file-contexts file_contexts --fs-config fs_config \
+  -m /system --label system
+```
+
+### `pack --type erofs`
+
+```bash
+imgkit_scuti pack --type erofs [OPTIONS] -s <SOURCE> -o <OUTPUT>
+```
+
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `-s, --source <DIR>` | 是 | 源目录路径 |
+| `-o, --output <FILE>` | 是 | 输出镜像路径 |
+| `-m, --mount-point <PATH>` | 否 | 挂载点，默认 `/` |
+| `--file-contexts <FILE>` | 否 | SELinux `file_contexts` 路径 |
+| `--fs-config <FILE>` | 否 | `fs_config` 路径 |
+| `--label <NAME>` | 否 | 卷标 |
+| `-b, --block-size <SIZE>` | 否 | 块大小，默认 `4096` |
+| `--timestamp <UNIX_TIME>` | 否 | 固定时间戳 |
+| `--uuid <UUID>` | 否 | UUID（`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`） |
+| `--root-uid <UID>` | 否 | 根目录 UID，默认 `0` |
+| `--root-gid <GID>` | 否 | 根目录 GID，默认 `0` |
+| `--compress <ALGO>` | 否 | 压缩算法：`lz4`、`lz4hc`、`lzma`、`deflate`、`zstd` |
+| `--compress-level <LEVEL>` | 否 | 压缩级别，取值随算法变化 |
+| `-S, --sparse` | 否 | 输出 sparse 镜像 |
+| `-l, --level <0-3>` | 否 | 日志级别，默认 `1` |
+
+压缩级别说明：
+
+- `lz4`：固定级别，不支持调节
+- `lz4hc`：`0-12`，默认 `9`
+- `lzma`：`0-9` 和字典预设 `100-109`
+- `deflate`：`0-9`，默认 `6`
+- `zstd`：`0-22`，默认 `3`
+
+示例：
+
+```bash
+imgkit_scuti pack --type erofs -s system/ -o system.img
+imgkit_scuti pack --type erofs -s system/ -o system.img \
+  --compress lz4hc --compress-level 9 \
+  --file-contexts file_contexts --fs-config fs_config \
+  -m /system
+```

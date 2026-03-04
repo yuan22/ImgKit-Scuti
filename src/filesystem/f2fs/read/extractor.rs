@@ -3,7 +3,11 @@
 // Provides file system extraction and configuration generation functions
 
 use crate::filesystem::f2fs::{F2fsVolume, Inode, Nid};
-use crate::utils::create_symlink;
+use crate::utils::{
+    check_windows_case_conflict, create_symlink, display_completion, display_progress,
+    is_case_sensitive_directory, join_output_path, sanitize_single_component, write_file_contexts,
+    write_fs_config,
+};
 use anyhow::Result;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -60,7 +64,7 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
 
     fs::create_dir_all(&extract_path)?;
     fs::create_dir_all(&config_dir)?;
-    let case_sensitive = crate::utils::is_case_sensitive_directory(&extract_path)?;
+    let case_sensitive = is_case_sensitive_directory(&extract_path)?;
     let mut case_map = HashMap::new();
 
     // Extract file system
@@ -73,6 +77,14 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
     // Extract xattr of root directory (consistent with EXT4/EROFS)
     let root_node = reader.read_node(root_nid)?;
     let root_inode = Inode::from_bytes(&root_node)?;
+    fs_config.push((
+        PathBuf::from("/"),
+        root_inode.uid,
+        root_inode.gid,
+        root_inode.mode & 0o777,
+        String::new(),
+        String::new(),
+    ));
     extract_xattrs(
         &reader,
         &root_inode,
@@ -111,7 +123,7 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
                 continue;
             }
 
-            let safe_name = match crate::utils::sanitize_single_component(&entry.name) {
+            let safe_name = match sanitize_single_component(&entry.name) {
                 Ok(value) => value,
                 Err(err) => {
                     log::warn!("跳过非法目录项 {:?}: {}", entry.name, err);
@@ -120,13 +132,9 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
             };
             let entry_rel_path = current_path.join(&safe_name);
             if !case_sensitive {
-                crate::utils::check_windows_case_conflict(
-                    &mut case_map,
-                    &extract_path,
-                    &entry_rel_path,
-                )?;
+                check_windows_case_conflict(&mut case_map, &extract_path, &entry_rel_path)?;
             }
-            let entry_path = crate::utils::join_output_path(&extract_path, &entry_rel_path)
+            let entry_path = join_output_path(&extract_path, &entry_rel_path)
                 .map_err(|e| anyhow::anyhow!("无效输出路径 {:?}: {}", entry_rel_path, e))?;
             let entry_node = reader.read_node(entry.nid).map_err(|e| {
                 anyhow::anyhow!(
@@ -229,11 +237,11 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
             }
 
             let count = extracted_count.fetch_add(1, Ordering::Relaxed) + 1;
-            crate::utils::display_progress(filename, count, total_task_count);
+            display_progress(filename, count, total_task_count);
         },
     );
 
-    crate::utils::display_completion(start_time.elapsed());
+    display_completion(start_time.elapsed());
 
     // Generate configuration file
     let fs_config_path = config.fs_config_path.unwrap_or_else(|| {
@@ -257,8 +265,8 @@ pub fn extract_image(config: ExtractConfig) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
 
-    crate::utils::write_fs_config(Path::new(&fs_config_path), &partition_name, &fs_config)?;
-    crate::utils::write_file_contexts(
+    write_fs_config(Path::new(&fs_config_path), &partition_name, &fs_config)?;
+    write_file_contexts(
         Path::new(&file_contexts_path),
         &partition_name,
         &file_contexts,

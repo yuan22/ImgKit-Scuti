@@ -15,15 +15,12 @@ pub fn write_fs_config(
     let root_perm = fs_config
         .iter()
         .find(|(p, ..)| p.as_os_str() == "/")
-        .map(|(_, o, g, m, ..)| (*o, *g, *m))
-        .unwrap_or((0, 0, 0o755));
+        .map(|(_, o, g, m, ..)| (*o, *g, *m));
 
-    writeln!(f, "/ {} {} {:04o}", root_perm.0, root_perm.1, root_perm.2)?;
-    writeln!(
-        f,
-        "{} {} {} {:04o}",
-        prefix, root_perm.0, root_perm.1, root_perm.2
-    )?;
+    if let Some((owner, group, mode)) = root_perm {
+        writeln!(f, "/ {} {} {:04o}", owner, group, mode)?;
+        writeln!(f, "{}/ {} {} {:04o}", prefix, owner, group, mode)?;
+    }
 
     for (p, owner, group, mode, cap, link) in fs_config {
         if p.as_os_str() == "/" {
@@ -61,14 +58,20 @@ pub fn write_file_contexts(
     let mut contexts: Vec<_> = file_contexts.iter().collect();
     contexts.sort_by_key(|(k, _)| (*k).clone());
 
-    if let Some(root_context) = file_contexts.get(&PathBuf::from("/")) {
-        writeln!(f, "/ {}", root_context)?;
-        writeln!(f, "/{} {}", prefix, root_context)?;
-        writeln!(f, "/{}/ {}", prefix, root_context)?;
-    }
+    let root_context = file_contexts
+        .get(&PathBuf::from("/"))
+        .map(String::as_str)
+        .unwrap_or("");
+    writeln!(f, "/ {}", root_context)?;
+    writeln!(f, "/{}(/.*)? {}", prefix, root_context)?;
+    let lost_found_context = file_contexts
+        .get(&PathBuf::from("/lost+found"))
+        .map(String::as_str)
+        .unwrap_or("");
+    writeln!(f, "/{}/lost\\+found {}", prefix, lost_found_context)?;
 
     for (p, context) in contexts {
-        if p.as_os_str() == "/" {
+        if p.as_os_str() == "/" || p.as_os_str() == "/lost+found" {
             continue;
         }
         let out_path = Path::new(prefix).join(p.strip_prefix("/").unwrap_or(p));
@@ -79,7 +82,6 @@ pub fn write_file_contexts(
         let escaped_path = path_str
             .replace('.', "\\.")
             .replace('+', "\\+")
-            .replace('-', "\\-")
             .replace('[', "\\[")
             .replace(']', "\\]")
             .replace('(', "\\(")
